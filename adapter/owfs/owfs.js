@@ -2,7 +2,7 @@
  *   CCU.IO OWFS Adapter - owfs.js
  *
  *   Initial Version : 05. Mar 2014
- *   Current Version : 0.3.0 [17.07.2014]
+ *   Current Version : 0.3.2 [04.02.2015]
  *   
  *   Change Notes:
  *   - Initial Version 0.2.1 
@@ -59,8 +59,10 @@ function writeWire(ipID, wireID, value) {
         adapter.settings.IPs["_" + ipID].con.write(
             "/" + adapter.settings.IPs["_" + ipID].wire["_" + wireID].id + "/" + (adapter.settings.IPs["_" + ipID].wire["_" + wireID].property || "temperature"),
             value,
-            function(result) {
-                //no idea what is received here
+            function(err,result) {
+                if (err) {
+                    adapter.log("warn", "read returned error: " + err.msg);
+                }
             }
         );
     }
@@ -69,8 +71,20 @@ function writeWire(ipID, wireID, value) {
 function readWire(ipID, wireID) {
     if (adapter.settings && adapter.settings.IPs["_" + ipID].wire["_" + ipID] && adapter.settings.IPs["_" + ipID].con) {
         adapter.settings.IPs["_" + ipID].con.read("/" + adapter.settings.IPs["_" + ipID].wire["_" + wireID].id + "/" + (adapter.settings.IPs["_" + ipID].wire["_" + wireID].property || "temperature"),
-            function(result) {
-                adapter.setState(adapter.settings.IPs["_" + ipID].channelId + wireID, result);
+            function(err,result) {
+                if (!err && result) {
+                    if (parseInt(result) == 85) {
+                        // check for possible error and return without setting DP
+                        var curVal = adapter.getState(adapter.settings.IPs["_" + ipID].channelId + wireID);
+                        if (curVal && ((curVal < 80) || (curVal > 90))) {
+                                adapter.log("warn", "skipped possible error (85) for DP " + (adapter.settings.IPs["_" + ipID].channelId + wireID));
+                                return;
+                        }
+                    }
+                    adapter.setState(adapter.settings.IPs["_" + ipID].channelId + wireID, result);
+                } else {
+                    adapter.log("warn", "read returned error: " + err.msg);
+                }
             }
         );
     }
