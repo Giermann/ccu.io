@@ -72,18 +72,18 @@ function readWire(ipID, wireID) {
     if (adapter.settings && adapter.settings.IPs["_" + ipID].wire["_" + ipID] && adapter.settings.IPs["_" + ipID].con) {
         adapter.settings.IPs["_" + ipID].con.read("/" + adapter.settings.IPs["_" + ipID].wire["_" + wireID].id + "/" + (adapter.settings.IPs["_" + ipID].wire["_" + wireID].property || "temperature"),
             function(err,result) {
-                if (!err && result) {
-                    if (parseInt(result) == 85) {
+                if (err) {
+                    adapter.log("warn", "read returned error: " + err.msg);
+                } else if (result) {
+                    if ((parseFloat(result) == 0) || (result.substring(0,2) == "85")) {
                         // check for possible error and return without setting DP
                         var curVal = adapter.getState(adapter.settings.IPs["_" + ipID].channelId + wireID);
-                        if (curVal && ((curVal < 80) || (curVal > 90))) {
-                                adapter.log("warn", "skipped possible error (85) for DP " + (adapter.settings.IPs["_" + ipID].channelId + wireID));
+                        if (curVal && Math.abs(curVal - parseFloat(result))) {
+                                adapter.log("warn", "skip invalid value for id " + (adapter.settings.IPs["_" + ipID].channelId + wireID) + ": " + result);
                                 return;
                         }
                     }
                     adapter.setState(adapter.settings.IPs["_" + ipID].channelId + wireID, result);
-                } else {
-                    adapter.log("warn", "read returned error: " + err.msg);
                 }
             }
         );
