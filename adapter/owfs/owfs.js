@@ -75,15 +75,18 @@ function readWire(ipID, wireID) {
                 if (err) {
                     adapter.log("warn", "read returned error: " + err.msg);
                 } else if (result) {
-                    if ((parseFloat(result) == 0) || (result.substring(0,2) == "85")) {
-                        // check for possible error and return without setting DP
-                        var curVal = adapter.getState(adapter.settings.IPs["_" + ipID].channelId + wireID);
-                        if (curVal && Math.abs(curVal - parseFloat(result))) {
-                                adapter.log("warn", "skip invalid value for id " + (adapter.settings.IPs["_" + ipID].channelId + wireID) + ": " + result);
-                                return;
-                        }
+                    if ((parseFloat(result) == 0) || (parseFloat(result) == 85)) {
+                        // async check for possible error and return without setting DP
+                        adapter.getState(adapter.settings.IPs["_" + ipID].channelId + wireID, function (id, val) {
+                            if (!val || (Math.abs(val - parseFloat(this.newVal)) < 3)) {
+                                adapter.setState(id, this.newVal);
+                            } else {
+                                adapter.log("warn", "skip invalid value for id " + id + ": " + this.newVal);
+                            }
+                        }.bind({ newVal: result }));
+                    } else {
+                        adapter.setState(adapter.settings.IPs["_" + ipID].channelId + wireID, result);
                     }
-                    adapter.setState(adapter.settings.IPs["_" + ipID].channelId + wireID, result);
                 }
             }
         );
