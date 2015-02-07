@@ -75,7 +75,8 @@ function readWire(ipID, wireID) {
                 if (err) {
                     adapter.log("warn", "read returned error: " + err.msg);
                 } else if (result) {
-                    if ((parseFloat(result) == 0) || (parseFloat(result) == 85)) {
+                    if (isNaN(parseFloat(result)) || (parseFloat(result) == 85)) {
+                        // TODO: do we have to check if number values are expected?
                         // async check for possible error and return without setting DP
                         adapter.getState(adapter.settings.IPs["_" + ipID].channelId + wireID, function (id, val) {
                             if (!val || (Math.abs(val - parseFloat(this.newVal)) < 3)) {
