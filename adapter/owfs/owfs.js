@@ -2,7 +2,7 @@
  *   CCU.IO OWFS Adapter - owfs.js
  *
  *   Initial Version : 05. Mar 2014
- *   Current Version : 0.3.2 [04.02.2015]
+ *   Current Version : 0.3.2 [07.02.2015]
  *   
  *   Change Notes:
  *   - Initial Version 0.2.1 
