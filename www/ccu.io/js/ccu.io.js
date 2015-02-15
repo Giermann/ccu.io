@@ -249,7 +249,7 @@ $(document).ready(function () {
             if (availVersionArr[1] > instVersionArr[1]) {
                 updateAvailable = true;
             } else if (availVersionArr[1] == instVersionArr[1]) {
-                if (availVersionArr[2] > instVersionArr[2]) {
+                if (availVersionArr[2] >= instVersionArr[2]) {
                     updateAvailable = true;
                 }
             }
