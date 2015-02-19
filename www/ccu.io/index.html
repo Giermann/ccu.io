@@ -34,6 +34,60 @@
     <script src="../socket.io/socket.io.js"></script>
     <script src="js/ccu.io.Lang.js" type="text/javascript"></script>
     <script src="js/ccu.io.js" type="text/javascript"></script>
+    <script src="http://google-ajax-examples.googlecode.com/svn/trunk/whereareyou/scripts/geometa.js" type="text/javascript"></script>
+    <script type="text/javascript">
+        function doGeolocation() {
+          // gmaps-sample would need to call prepareGeolocation
+          // https://gmaps-samples-v3.googlecode.com/svn/trunk/geolocate/geometa.js
+          //prepareGeolocation();
+          if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(positionSuccess, positionError);
+          } else {
+            positionError(-1);
+          }
+        }
+        // workaround since we can't access showMessage() here
+        function showDialog(text) {
+          $('#dialogModal').show();
+          $('#dialogModal').html("<p>"+translateWord (text) +"</p>").attr('title', translateWord (caption || "Geolocation"));
+          $( "#dialogModal" ).dialog({
+              height: 200,
+              modal: true,
+              buttons: {
+                  "Ok": function () {
+                      $( this ).dialog( "close" );
+                  }
+              }
+          });
+        }
+        function positionError(err) {
+          var msg;
+          switch(err.code) {
+            case err.UNKNOWN_ERROR:
+              msg = "Unable to find your location";
+              break;
+            case err.PERMISSION_DENINED:
+              msg = "Permission denied in finding your location";
+              break;
+            case err.POSITION_UNAVAILABLE:
+              msg = "Your location is currently unknown";
+              break;
+            case err.BREAK:
+              msg = "Attempt to find location took too long";
+              break;
+            default:
+              msg = "Location detection not supported in browser";
+          }
+          showDialog("Error: " + msg);
+        }
+        function positionSuccess(position) {
+          // Centre the map on the new location
+          var coords = position.coords || position.coordinate || position;
+          $("#longitude").val(coords.longitude);
+          $("#latitude").val(coords.latitude);
+          showDialog("Succesfull.\nLatitude: " + coords.latitude + "\nLongitude: " + coords.longitude);
+        }
+    </script>
 </head>
 <body>
 <div class="jqui-tabs" id="mainTabs">
@@ -173,7 +227,7 @@
                             <td class="settings-td4">&nbsp;</td>
                             <td class="settings-td5">&nbsp;</td>
                             <td class="settings-td6">&nbsp;</td>
-                            <td class="settings-td7">&nbsp;</td>
+                            <td class="settings-td7"><input type="button" id="getGeolocation" class='translateV' value="get from client" onclick="doGeolocation();"/></td>
                         </tr>
                         <tr>
                             <td class="settings-td1 translate">CCU IP-Address</td>
@@ -181,8 +235,8 @@
                             <td class="settings-td3"><input id="ccuIp" type="text"/></td>
                             <td class="settings-td4">&nbsp;</td>
                             <td class="settings-td5">&nbsp;</td>
-                            <td class="settings-td6">&nbsp;</td>
-                            <td class="settings-td7">&nbsp;</td>
+                            <td class="settings-td6 translate">Latitude</td>
+                            <td class="settings-td7"><input id="latitude" type="text"/></td>
                         </tr>
                         <tr>
                             <td class="settings-td1 translate">CCU.IO IP-Address</td>
@@ -190,8 +244,8 @@
                             <td class="settings-td3"><input id="binrpc_listenIp" type="text"/></td>
                             <td class="settings-td4">&nbsp;</td>
                             <td class="settings-td5">&nbsp;</td>
-                            <td class="settings-td6">&nbsp;</td>
-                            <td class="settings-td7">&nbsp;</td>
+                            <td class="settings-td6 translate">Longitude</td>
+                            <td class="settings-td7"><input id="longitude" type="text"/></td>
                         </tr>
                         <tr>
                             <td class="settings-td1 translate">Stats</td>
@@ -215,10 +269,10 @@
                             <td class="settings-td1 translate">Script-Engine</td>
                             <td class="settings-td2 translate">Enabled</td>
                             <td class="settings-td3"><input id="scriptEngineEnabled" type="checkbox"/></td>
-                            <td class="settings-td4 translate">Longitude</td>
-                            <td class="settings-td5"><input id="longitude" type="text"/></td>
-                            <td class="settings-td6 translate">Latitude</td>
-                            <td class="settings-td7"><input id="latitude" type="text"/></td>
+                            <td class="settings-td4">&nbsp;</td>
+                            <td class="settings-td5">&nbsp;</td>
+                            <td class="settings-td6">&nbsp;</td>
+                            <td class="settings-td7">&nbsp;</td>
                         </tr>
 
                     </table>
