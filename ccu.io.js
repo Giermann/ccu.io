@@ -13,7 +13,7 @@
 
 var settings = require(__dirname+'/settings.js');
 
-settings.version = "1.0.51";
+settings.version = "1.0.52";
 settings.basedir = __dirname;
 settings.datastorePath = __dirname+"/datastore/";
 settings.stringTableLanguage = settings.stringTableLanguage || "de";
@@ -445,47 +445,49 @@ function reconnect() {
 }
 
 function pollRega() {
+    if (pollTimer) clearTimeout(pollTimer);
+    logger.debug('ccu.io        pollRega');
     regahss.runScriptFile("polling", function (data) {
-        if (!data) {
+        try {
+            data = JSON.parse(data);
+        } catch (e) {
+            logger.error("ccu.io        pollRega invalid JSON "+e);
             ccuRegaUp = false;
             tryReconnect();
             return false;
         }
-        try {
-            data = JSON.parse(data);
-        } catch (e) {
-            logger.error("ccu.io        pollRega "+e);
-        }
-        try {
-            for (id in data) {
-                var val;
 
-                if (settings.logging.enabled) {
-                    var ts = Math.round((new Date()).getTime() / 1000);
-                    if (typeof data[id][0] == "string") {
-                        val = unescape(data[id][0]);
-                    } else {
-                        val = data[id][0];
-                    }
+        if (!data) return;
 
-                    if (datapoints[id] && settings.logging.varChangeOnly && notFirstVarUpdate) {
-                        if (datapoints[id][0] != val || !datapoints[id][2]) {
-                            devLog(ts, id, val);
-                        }
-                    } else {
+        for (id in data) {
+            var val;
+
+            if (!data[id] || typeof data[id][0] === 'undefined') continue;
+
+            if (settings.logging.enabled) {
+                var ts = Math.round((new Date()).getTime() / 1000);
+                if (typeof data[id][0] == "string") {
+                    val = unescape(data[id][0]);
+                } else {
+                    val = data[id][0];
+                }
+
+                if (datapoints[id] && settings.logging.varChangeOnly && notFirstVarUpdate) {
+                    if (datapoints[id][0] !== val || !datapoints[id][2]) {
                         devLog(ts, id, val);
                     }
-
-                    // Hat sich die Anzahl der Servicemeldungen geändert?
-                    if (id == 41 && datapoints[id][0] != val) {
-                        pollServiceMsgs();
-                    }
+                } else {
+                    devLog(ts, id, val);
                 }
-                setDatapoint(id, data[id][0], formatTimestamp(), true, data[id][1]);
+
+                // Hat sich die Anzahl der Servicemeldungen geändert?
+                if (id == 41 && datapoints[id][0] != val) {
+                    pollServiceMsgs();
+                }
             }
-        } catch (e) {
-            logger.error("ccu.io        pollRega "+e);
+            setDatapoint(id, data[id][0], formatTimestamp(), true, data[id][1]);
         }
+
         notFirstVarUpdate = true;
         pollTimer = setTimeout(pollRega, settings.regahss.pollDataInterval);
     });
@@ -768,7 +770,7 @@ function uploadParser(req, res, next) {
     fs.rename(tmpPath, targetPath, function(err) {
         if (err) throw err;
         // delete the temporary file, so that the explicitly set temporary upload dir does not get filled with unwanted files
-        fs.unlink(tmpPath, function() {
+        fs.unlink(tmpPath, function(err) {
             if (err) throw err;
             res.send('File uploaded to: ' + targetPath + ' - ' + req.files.file.size + ' bytes');
         });
@@ -1738,15 +1740,12 @@ function initSocketIO(_io) {
         });
 
         socket.on('writeAdapterSettings', function (adapter, obj, callback) {
+            if (!adapter || !obj) return;
+            var content = JSON.stringify(obj);
             var name = 'adapter-' + adapter + '.json';
             settings.adapters[adapter] = obj;
 
-            // Todo Fehler abfangen
-            var content = JSON.stringify(obj);
-            if (JSON.stringify(obj) != content) {
-                logger.warn("ccu.io        writeFile strange JSON mismatch "+name);
-            }
-            logger.verbose("socket.io <-- writeFile "+name+" "+content);
+            logger.info("socket.io <-- writeFile "+name+" "+content.substring(0,60));
             fs.exists(settings.datastorePath+name, function (exists) {
                 if (exists) {
                     fs.rename(settings.datastorePath+name, settings.datastorePath+name+".bak", function() {

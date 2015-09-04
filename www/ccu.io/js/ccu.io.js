@@ -1,7 +1,6 @@
-var currentAdapterSettings;
 var ccuIoSettings = null;
-
-
+var currentAdapterSettings;
+var adapterHtmlEdit = false;
 
 function updateAdapterSettings() {
     $("#adapter_config_json").html(JSON.stringify(currentAdapterSettings, null, "    "));
@@ -1257,21 +1256,25 @@ $(document).ready(function () {
         });
     }
 
+
     function editAdapterSettings(adapter) {
-        $("#adapter_name").html(adapter);
+        $("#adapter_name").html("");
         $("#adapter_loading").show();
         $("#adapter_overview").hide();
         $("#adapter_config").hide();
 
-
         socket.emit("readFile", "adapter-"+adapter+".json", function (data) {
-            try {
+            $("#adapter_name").html(adapter);
+
+            if (typeof data === "object") {
                 $("#adapter_config_json").html(JSON.stringify(data, null, "    "));
-            } catch (e) {
+                currentAdapterSettings = data;
+            } else {
                 $("#adapter_config_json").html("{}");
+                currentAdapterSettings = {};
                 showMessage("Error: reading adapter config - invalid JSON");
             }
-            currentAdapterSettings = data;
+
             socket.emit("readRawFile", "adapter/"+adapter+"/settings.html", function (content) {
                 $("#adapter_loading").hide();
                 $("#adapter_config").show();
@@ -1279,31 +1282,39 @@ $(document).ready(function () {
                     $("#adapter_config_container").html(content);
                     $("#adapter_config_json").hide();
                     $("#adapter_config_container").show();
+                    adapterHtmlEdit = true;
                 } else {
                     $("#adapter_config_container").hide();
                     $("#adapter_config_json").show();
                     resizeGrids();
+                    adapterHtmlEdit = false;
                 }
             });
         });
 
     }
 
-    function saveAdapterSettings() {
+    function saveAdapterSettings(cb) {
         var adapter = $("#adapter_name").html();
-        try {
-            var adapterSettings = JSON.parse($("#adapter_config_json").val());
-            ccuIoSettings.adapters[adapter] = adapterSettings;
+        if (!adapter) {
+            showMessage("Error: adapter_name empty");
+            if (typeof cb === 'function') cb();
+        }
 
-            socket.emit("writeAdapterSettings", adapter, adapterSettings, function () {
-                showMessage(adapter + " " + translateWord("settings saved."));
-                loadAdapterSettings(adapter);
-            });
-            return true;
+        try {
+            ccuIoSettings.adapters[adapter] = JSON.parse($("#adapter_config_json").val());
         } catch (e) {
             showMessage("Error: invalid JSON");
             return false;
         }
+
+        console.log('writeAdapterSettings', adapter, ccuIoSettings.adapters[adapter]);
+
+        socket.emit("writeAdapterSettings", adapter, ccuIoSettings.adapters[adapter], function () {
+            showMessage(adapter + " " + translateWord("settings saved."));
+            loadAdapterSettings(adapter);
+            if (typeof cb === 'function') cb();
+        });
     }
 
     function showMessage(text, caption) {
@@ -1327,10 +1338,10 @@ $(document).ready(function () {
     $("#adapter_save").button().click(saveAdapterSettings);
 
     $("#adapter_close").button().click(function () {
-        if (saveAdapterSettings()) {
+        saveAdapterSettings(function () {
             $("#adapter_config").hide();
             $("#adapter_overview").show();
-        }
+        });
     });
 
     $("#adapter_cancel").button().click(function () {
@@ -1339,15 +1350,17 @@ $(document).ready(function () {
     });
 
     function buildDevicesGrid() {
+        var newData = [];
         for (var id in regaObjects) {
             var obj = regaObjects[id];
             obj.id = id;
             obj._persistent = (obj._persistent ? "<input class='delObject' data-del-id='"+id+"' type='button' value='x'/>" : "");
             if (!obj.Parent) {
                 // FIXME Multiple usage of same IDs (datapoint-grid)
-                $("#grid_objecttree").jqGrid('addRowData', id, obj);
+                newData.push(obj);
             }
         }
+        $("#grid_objecttree").jqGrid('addRowData', 'id', newData);
         $("#grid_objecttree").trigger("reloadGrid");
     }
 
@@ -1363,11 +1376,13 @@ $(document).ready(function () {
     function buildDatapointsGrid() {
         $("#loader_message").append(translateWord("loading datapoints") + " ... <br/>");
         $datapointGrid.jqGrid("clearGridData");
+        $('#load_grid_datapoints').show();
 
         socket.emit('getDatapoints', function(obj) {
+            var newData = [];
             for (var id in obj) {
                 if (isNaN(id)) { continue; }
-                var data = {
+                newData.push({
                     id:         id,
                     name:       (regaObjects[id] ?  regaObjects[id].Name : ""),
                     address:    (regaObjects[id] ?  regaObjects[id].Address : ""),
@@ -1378,9 +1393,9 @@ $(document).ready(function () {
                     ack:        obj[id][2],
                     lastChange: (obj[id][3] == "1970-01-01 01:00:00" ? "" : obj[id][3]),
                     persistent: (regaObjects[id] && regaObjects[id]._persistent ? "<input class='delObject' data-del-id='"+id+"' type='button' value='x'/>" : "")
-                };
-                $datapointGrid.jqGrid('addRowData', id, data);
+                });
             }
+            $datapointGrid.jqGrid('addRowData', 'id', newData);
             $datapointGrid.trigger("reloadGrid");
         });
     }

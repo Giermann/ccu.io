@@ -29,18 +29,20 @@ var client = mqtt.createClient(adapterSettings.port, adapterSettings.host);
 
 var rx;
 
-switch (adapterSettings.payload) {
-    case'plain':
-        rx = new RegExp("^" + adapterSettings.prefix + "set\/([0-9]+)$");
-        break;
-    default:
-        rx = new RegExp("^" + adapterSettings.prefix + "([0-9]+)$");
-}
+//switch (adapterSettings.payload) {
+//    case'plain':
+        rx = new RegExp("^" + adapterSettings.prefix + "set/([0-9]+)$");
+//        break;
+//    default:
+//        rx = new RegExp("^" + adapterSettings.prefix + "([0-9]+)$");
+//}
 
 client.on('message', function(topic, message) {
+    //logger.info(topic + ' ' + message)
     var tmp;
     if (tmp = topic.match(rx)) {
         var id = tmp[1];
+        //logger.info(topic + ' ' + id)
 
         switch (adapterSettings.payload) {
             case 'plain':
@@ -50,8 +52,11 @@ client.on('message', function(topic, message) {
                 try {
                     var msg = JSON.parse(message);
                 } catch (e) {}
+
                 if (typeof msg === 'object' && typeof msg.val !== 'undefined' && msg.from !== from) {
                     socket.emit("setState", [id, msg.val]);
+                } else if (typeof msg !== 'object') {
+                    socket.emit("setState", [id, msg]);
                 }
 
         }
@@ -60,8 +65,8 @@ client.on('message', function(topic, message) {
 
 socket.on('connect', function () {
     logger.info("adapter mqtt  connected to ccu.io");
-    logger.info("adapter mqtt  subscribe " + adapterSettings.prefix + "#");
-    client.subscribe(adapterSettings.prefix + "#");
+    logger.info("adapter mqtt  subscribe " + adapterSettings.prefix + "set/#");
+    client.subscribe(adapterSettings.prefix + "set/#");
 });
 
 socket.on('disconnect', function () {
@@ -76,10 +81,12 @@ socket.on('event', function (obj) {
     var ack = obj[3];
     var lc = obj[4];
 
-    if (ts != lc) return; // value unchanged
 
-    var topic = adapterSettings.prefix + id;
+    //if (ts != lc) return; // value unchanged
+
+    var topic = adapterSettings.prefix + 'status/' + id;
     var payload = "";
+
 
     switch (adapterSettings.payload) {
         case "plain":
@@ -92,6 +99,9 @@ socket.on('event', function (obj) {
         default:
             payload = JSON.stringify({val: val, ts: Math.floor((new Date(ts)).getTime() / 1000), ack: ack, lc: lc ? Math.floor((new Date(lc)).getTime() / 1000) : null, from: from});
     }
+
+    //logger.info('> ' + topic + ' ' + payload);
+
     client.publish(topic, payload, {retain: adapterSettings.retain});
 });
 
@@ -100,8 +110,8 @@ socket.on('event', function (obj) {
 function stop() {
     logger.info("adapter mqtt  terminating");
     try {
-        client.unsubscribe(adapterSettings.prefix + "#");
-        logger.info("adapter mqtt  unsubscribe " + adapterSettings.prefix + "#");
+        client.unsubscribe(adapterSettings.prefix + "set/#");
+        logger.info("adapter mqtt  unsubscribe " + adapterSettings.prefix + "set/#");
         client.end();
     } catch (e) {}
     setTimeout(function () {
