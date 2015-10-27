@@ -46,14 +46,12 @@ Schnittstelle zu 1wire Geraeten.
 * Derzeit noch über settings.json  
 
 ### Funktionen
-* Derzeit kann 1 OWFS Server angegeben werden
-* Derzeit ist die Abfrage von 12 1wire Sensoren an einem Server moeglich
+* Es koennen mehrere OWFS Server angegeben werden
+* Derzeit ist die Abfrage von 50 1wire Sensoren pro Server moeglich
                                                
 ## Todo/Roadmap
 * html config for settings.json
 * discovery for 1wire devices
-* more than one OWFS Server
-* more 1wire devices
 * more ...
 
 ## Lizenz
