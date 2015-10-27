@@ -128,7 +128,7 @@ function createPointsForServer(ipID) {
             {
                 "Operations": 5,
                 "ValueType":  4,
-                "ValueUnit":  "°C"
+                "ValueUnit":  ((adapter.settings.IPs["_" + ipID].wire["_" + id].property || "temperature") == "temperature" ? "°C" : "")
 		    }
         );
 		id++;
