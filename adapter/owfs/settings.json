@@ -2,7 +2,6 @@
     "enabled": false,
     "firstId": 74300,
     "settings": {
-        "owserverTimeout": 3000,
         "owserverInterval": 30000,
         "IPs": {
             "_1": {
@@ -13,16 +12,19 @@
                 "wire": {
                     "_1": {
                         "alias": "Sensor1",
-                        "id": "10.C8F148010800",
-                        "property": "temperature"
+                        "id": "10.C8F148010800"
                     },
                     "_2": {
                         "alias": "Sensor2",
-                        "id": "10.040349010800"
+                        "id": "10.040349010800",
+                        "property": "temperature",
+                        "unit": "°F",
+                        "dir": "r"
                     },
                     "_3": {
                         "alias": "Sensor3",
-                        "id": "10.26EC48010800"
+                        "id": "10.26EC48010800",
+                        "dir": "w"
                     }
                 }
             }
