@@ -2,12 +2,15 @@
  *   CCU.IO OWFS Adapter - owfs.js
  *
  *   Initial Version : 05. Mar 2014
- *   Current Version : 0.3.2 [07.02.2015]
+ *   Current Version : 0.3.4 [27.10.2015]
  *   
  *   Change Notes:
  *   - Initial Version 0.2.1 
  *   - Version 0.3.0 (Bluefox) Support of multiple IPs and up to 50 sensors per server
  *   - Version 0.3.1 (Bluefox) Possible write and use new adapter module
+ *   - Version 0.3.2 (Giermann) Shorter channel name and identify/skip read errors
+ *   - Version 0.3.3 (Giermann) Fix write support, avoid write after each read
+ *   - Version 0.3.4 (Giermann) Continuous reading (interval<0) and new configs: unit, dir [r|w|rw] (direction: read/write only)
  *
  *   Authors: 
  *   Ralf Muenk [muenk@getcom.de]
@@ -30,7 +33,7 @@ var owfsClient = require('owfs').Client;
 
 // Fix old settings
 if (adapter.settings.wire && adapter.settings.IPs._1) {
-	adapter.settings.IPs._1.wire = adapter.settings.wire;
+    adapter.settings.IPs._1.wire = adapter.settings.wire;
 }
 
 adapter.onEvent = function (id, val, ts, ack){
@@ -57,68 +60,77 @@ var channelsIDs = [];
 function writeWire(ipID, wireID, value) {
     if (adapter.settings && adapter.settings.IPs["_" + ipID].wire["_" + ipID] && adapter.settings.IPs["_" + ipID].con) {
         var path = "/" + adapter.settings.IPs["_" + ipID].wire["_" + wireID].id + "/" + (adapter.settings.IPs["_" + ipID].wire["_" + wireID].property || "temperature");
-        adapter.settings.IPs["_" + ipID].con.write(
+        if (adapter.settings.IPs["_" + ipID].wire["_" + wireID].dir != "r") adapter.settings.IPs["_" + ipID].con.write(
             path,
             value,
             function(err,result) {
                 if (err) {
-                    // TODO: writing appears after every read and returns -90 (workaround: disable warning)
-                    //adapter.log("warn", "error writing '" + this.p + "': " + err.msg);
+                    adapter.log("debug", "error writing '" + this.p + "': " + err.msg);
                 }
             }.bind( {p: path} )
         );
     }
 }
 
-function readWire(ipID, wireID) {
+function readWire(ipID, wireID, loop) {
     if (adapter.settings && adapter.settings.IPs["_" + ipID].wire["_" + ipID] && adapter.settings.IPs["_" + ipID].con) {
         var path = "/" + adapter.settings.IPs["_" + ipID].wire["_" + wireID].id + "/" + (adapter.settings.IPs["_" + ipID].wire["_" + wireID].property || "temperature");
-        adapter.settings.IPs["_" + ipID].con.read(path,
+        if (adapter.settings.IPs["_" + ipID].wire["_" + wireID].dir != "w") adapter.settings.IPs["_" + ipID].con.read(path,
             function(err,result) {
                 if (err) {
-                    adapter.log("warn", "error reading '" + this.p + "': " + err.msg);
+                    adapter.log("debug", "error reading '" + this.p + "': " + err.msg);
                 } else if (result) {
-                    if (isNaN(parseFloat(result)) || (parseFloat(result) == 85)) {
+                    if (parseFloat(result) == 85) {
                         // TODO: do we have to check if number values are expected?
                         // async check for possible error and return without setting DP
-                        adapter.getState(this.id, function (id, val) {
+                        adapter.getState(adapter.settings.IPs["_" + this.ip].channelId + this.wire, function (id, val) {
                             if (!val || (Math.abs(val - parseFloat(this.newVal)) < 3)) {
-                                adapter.setState(id, this.newVal);
+                                if (val != this.newVal) adapter.setState(id, this.newVal, true);
                             } else {
-                                adapter.log("warn", "skip invalid value for id " + id + ": " + this.newVal);
+                                adapter.log("debug", "skip invalid value for id " + id + ": " + this.newVal);
                             }
                         }.bind( {newVal: result} ));
-                    } else {
-                        adapter.setState(this.id, result);
+                    } else if (!isNaN(parseFloat(result))) {
+                        if (this.doLoop) {
+                            // only set changes in loop mode
+                            adapter.getState(adapter.settings.IPs["_" + this.ip].channelId + this.wire, function (id, val) {
+                                if (val != this.newVal) adapter.setState(id, this.newVal, true);
+                            }.bind( {newVal: result} ));
+                        } else {
+                            // set ack=true to avoid writing the same value back again
+                            adapter.setState(adapter.settings.IPs["_" + this.ip].channelId + this.wire, result, true);
+                        }
                     }
                 }
-            }.bind( {p: path, id: adapter.settings.IPs["_" + ipID].channelId + wireID} )
+                // prefer setTimeout for next read (wait 10s in case of error)
+                if (this.doLoop) setTimeout(readWire, (err ? 10000 : 0), this.ip, this.wire, true);
+            }.bind( {p: path, ip: ipID, wire: wireID, doLoop: loop } )
         );
     }
 }
 
-function owfsServerGetValues (ipID){
-	if (adapter.settings.IPs["_" + ipID]) {
-		var id = 1;
-		while (adapter.settings.IPs["_" + ipID].wire["_" + id]) {
-			readWire(ipID, id);
-			id++;
-		}
-	}
+function owfsServerGetValues(ipID, loop) {
+    if (adapter.settings.IPs["_" + ipID]) {
+        var id = 1;
+        while (adapter.settings.IPs["_" + ipID].wire["_" + id]) {
+            readWire(ipID, id, loop);
+            id++;
+        }
+    }
 }
 
 function createPointsForServer(ipID) {
-	// Create Datapoints in CCU.IO
-	var id = 1;
-	var channelId = rootId + (ipID - 1) * 50 + 1;
-	adapter.settings.IPs["_" + ipID].channelId = channelId;
-	adapter.settings.IPs["_" + ipID].sensorDPs = {};
+    // Create Datapoints in CCU.IO
+    var id = 1;
+    var channelId = rootId + (ipID - 1) * 50 + 1;
+    adapter.settings.IPs["_" + ipID].channelId = channelId;
+    adapter.settings.IPs["_" + ipID].sensorDPs = {};
     if (typeof owfsClient != "undefined") {
         adapter.settings.IPs["_" + ipID].con   = new owfsClient(adapter.settings.IPs["_" + ipID].ip, adapter.settings.IPs["_" + ipID].port);
     }
 
-	while (adapter.settings.IPs["_" + ipID].wire && adapter.settings.IPs["_" + ipID].wire.hasOwnProperty("_" + id)) {
-		adapter.settings.IPs["_" + ipID].sensorDPs["Sensor" + id] = channelId + id;
+    while (adapter.settings.IPs["_" + ipID].wire && adapter.settings.IPs["_" + ipID].wire.hasOwnProperty("_" + id)) {
+        adapter.settings.IPs["_" + ipID].sensorDPs["Sensor" + id] = channelId + id;
 
         adapter.createDP(
             channelId + id,
@@ -126,13 +138,15 @@ function createPointsForServer(ipID) {
             "OWFS." + adapter.settings.IPs["_" + ipID].alias + "." + adapter.settings.IPs["_" + ipID].wire["_" + id].alias,
             true,
             {
-                "Operations": 5,
+                "Operations": (adapter.settings.IPs["_" + ipID].wire["_" + id].dir == "r" ? 5 :
+                              (adapter.settings.IPs["_" + ipID].wire["_" + id].dir == "w" ? 6 : 7)),
                 "ValueType":  4,
-                "ValueUnit":  ((adapter.settings.IPs["_" + ipID].wire["_" + id].property || "temperature") == "temperature" ? "°C" : "")
-		    }
+                "ValueUnit":  adapter.settings.IPs["_" + ipID].wire["_" + id].unit ||
+                              ((adapter.settings.IPs["_" + ipID].wire["_" + id].property || "temperature") == "temperature" ? "°C" : "")
+            }
         );
-		id++;
-	};
+        id++;
+    };
 
     adapter.createChannel(
         channelId,
@@ -142,12 +156,17 @@ function createPointsForServer(ipID) {
         {HssType:     "1WIRE-SENSORS"}
     );
 
-	// Request first time
-	owfsServerGetValues(ipID);
-	
-	// Interval to read values from owfs-server
-	setInterval(owfsServerGetValues, adapter.settings.IPs["_" + ipID].interval || adapter.settings.owserverInterval || 30000, ipID);
-	channelsIDs.push(channelId);
+    if (adapter.settings.IPs["_" + ipID].interval < 0) {
+    	// conituous polling
+    	owfsServerGetValues(ipID, true);
+    } else {
+        // Request first time
+        owfsServerGetValues(ipID);
+
+    	// Interval to read values from owfs-server
+        setInterval(owfsServerGetValues, adapter.settings.IPs["_" + ipID].interval || adapter.settings.owserverInterval || 30000, ipID);
+    }
+    channelsIDs.push(channelId);
 }
 
 function initOWFS (){
@@ -161,4 +180,3 @@ function initOWFS (){
 }
 
 initOWFS();
-
