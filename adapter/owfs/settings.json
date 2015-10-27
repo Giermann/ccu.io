@@ -22,8 +22,9 @@
                         "dir": "r"
                     },
                     "_3": {
-                        "alias": "Sensor3",
-                        "id": "10.26EC48010800",
+                        "alias": "DS-2408-PIO",
+                        "id": "29.CAC50E000000",
+                        "property": "PIO.BYTE",
                         "dir": "w"
                     }
                 }
