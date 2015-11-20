@@ -81,6 +81,7 @@ var fs =        require('fs'),
 
 if (settings.ioListenPort) {
     app =  express();
+    app.use(express.compress());
 
     if (settings.authentication && settings.authentication.enabled) {
         app.use(express.basicAuth(settings.authentication.user, settings.authentication.password));
@@ -112,9 +113,12 @@ if (settings.ioListenPortSsl) {
     }
     if (options) {
         appSsl = express();
+        appSsl.use(express.compress());
+
         if (settings.authentication && settings.authentication.enabledSsl) {
             appSsl.use(express.basicAuth(settings.authentication.user, settings.authentication.password));
         }
+
         serverSsl = require('https').createServer(options, appSsl);
         if (settings.useIPv6) {
             serverSslV6 = require('http').createServer(options, appSsl);
