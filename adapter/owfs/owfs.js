@@ -2,7 +2,7 @@
  *   CCU.IO OWFS Adapter - owfs.js
  *
  *   Initial Version : 05. Mar 2014
- *   Current Version : 0.3.4 [27.10.2015]
+ *   Current Version : 0.3.5 [06.01.2016]
  *   
  *   Change Notes:
  *   - Initial Version 0.2.1 
@@ -11,6 +11,7 @@
  *   - Version 0.3.2 (Giermann) Shorter channel name and identify/skip read errors
  *   - Version 0.3.3 (Giermann) Fix write support, avoid write after each read
  *   - Version 0.3.4 (Giermann) Continuous reading (interval<0) and new configs: unit, dir [r|w|rw] (direction: read/write only)
+ *   - Version 0.3.5 (Giermann) Simultaneous reading for temperature
  *
  *   Authors: 
  *   Ralf Muenk [muenk@getcom.de]
@@ -111,6 +112,16 @@ function readWire(ipID, wireID, loop) {
 
 function owfsServerGetValues(ipID, loop) {
     if (adapter.settings.IPs["_" + ipID]) {
+        // request simultaneous temperature reading for faster results
+        adapter.settings.IPs["_" + ipID].con.write(
+            "/simultaneous/temperature",
+            1,
+            function(err,result) {
+                if (err) {
+                    adapter.log("debug", "error requesting simultaneous reading: " + err.msg);
+                }
+            }
+        );
         var id = 1;
         while (adapter.settings.IPs["_" + ipID].wire["_" + id]) {
             readWire(ipID, id, loop);
@@ -180,3 +191,4 @@ function initOWFS (){
 }
 
 initOWFS();
+
