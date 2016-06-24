@@ -2,7 +2,7 @@
  *   CCU.IO OWFS Adapter - owfs.js
  *
  *   Initial Version : 05. Mar 2014
- *   Current Version : 0.3.6 [07.06.2016]
+ *   Current Version : 0.3.6 [24.06.2016]
  *   
  *   Change Notes:
  *   - Initial Version 0.2.1 
@@ -12,7 +12,7 @@
  *   - Version 0.3.3 (Giermann) Fix write support, avoid write after each read
  *   - Version 0.3.4 (Giermann) Continuous reading (interval<0) and new configs: unit, dir [r|w|rw] (direction: read/write only)
  *   - Version 0.3.5 (Giermann) Simultaneous reading for temperature
- *   - Version 0.3.6 (Giermann) added log level config and number types
+ *   - Version 0.3.6 (Giermann) added log level config and number types, retry on write errors
  *
  *   Authors: 
  *   Ralf Muenk [muenk@getcom.de]
@@ -60,7 +60,7 @@ var id          = 1;
 var rootId      = adapter.firstId;
 var channelsIDs = [];
 
-function writeWire(ipID, wireID, value) {
+function writeWire(ipID, wireID, value, retries) {
     if (adapter.settings && adapter.settings.IPs["_" + ipID].wire["_" + ipID] && adapter.settings.IPs["_" + ipID].con) {
         var path = "/" + adapter.settings.IPs["_" + ipID].wire["_" + wireID].id + "/" + (adapter.settings.IPs["_" + ipID].wire["_" + wireID].property || "temperature");
         if (adapter.settings.IPs["_" + ipID].wire["_" + wireID].dir != "r") adapter.settings.IPs["_" + ipID].con.write(
@@ -68,10 +68,14 @@ function writeWire(ipID, wireID, value) {
             value,
             function(err,result) {
                 if (err) {
-                    adapter.log(adapter.settings.IPs["_" + ipID].errorLevelWrite || adapter.settings.errorLevelWrite,
-                        "error writing '" + this.p + "': " + err.msg);
+                    if (this.retr < 5) {
+                        setTimeout(writeWire, (adapter.settings.owserverTimeout || 3000), this.ip, this.wire, this.val, this.retr);
+                    } else {
+                        adapter.log(adapter.settings.IPs["_" + this.ip].errorLevelWrite || adapter.settings.errorLevelWrite,
+                            "error writing '" + this.p + "': " + err.msg);
+                    }
                 }
-            }.bind( {p: path} )
+            }.bind( {p: path, id: ipID, wire: wireID, val: value, retr: ((retries || 0) + 1)} )
         );
     }
 }
@@ -121,8 +125,8 @@ function readWire(ipID, wireID, loop) {
                         }
                     }
                 }
-                // prefer setTimeout for next read (wait 10s in case of error)
-                if (this.doLoop) setTimeout(readWire, (err ? 10000 : 0), this.ip, this.wire, true);
+                // prefer setTimeout for next read (wait in case of error)
+                if (this.doLoop) setTimeout(readWire, (err ? (adapter.settings.owserverTimeout || 3000) : 100), this.ip, this.wire, true);
             }.bind( {p: path, ip: ipID, wire: wireID, doLoop: loop } )
         );
     }
