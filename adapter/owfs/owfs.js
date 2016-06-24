@@ -61,7 +61,7 @@ var rootId      = adapter.firstId;
 var channelsIDs = [];
 
 function writeWire(ipID, wireID, value, retries) {
-    if (adapter.settings && adapter.settings.IPs["_" + ipID].wire["_" + ipID] && adapter.settings.IPs["_" + ipID].con) {
+    if (adapter.settings && adapter.settings.IPs["_" + ipID].wire["_" + wireID] && adapter.settings.IPs["_" + ipID].con) {
         var path = "/" + adapter.settings.IPs["_" + ipID].wire["_" + wireID].id + "/" + (adapter.settings.IPs["_" + ipID].wire["_" + wireID].property || "temperature");
         if (adapter.settings.IPs["_" + ipID].wire["_" + wireID].dir != "r") adapter.settings.IPs["_" + ipID].con.write(
             path,
@@ -81,7 +81,7 @@ function writeWire(ipID, wireID, value, retries) {
 }
 
 function readWire(ipID, wireID, loop) {
-    if (adapter.settings && adapter.settings.IPs["_" + ipID].wire["_" + ipID] && adapter.settings.IPs["_" + ipID].con) {
+    if (adapter.settings && adapter.settings.IPs["_" + ipID].wire["_" + wireID] && adapter.settings.IPs["_" + ipID].con) {
         var path = "/" + adapter.settings.IPs["_" + ipID].wire["_" + wireID].id + "/" + (adapter.settings.IPs["_" + ipID].wire["_" + wireID].property || "temperature");
         if (adapter.settings.IPs["_" + ipID].wire["_" + wireID].dir != "w") adapter.settings.IPs["_" + ipID].con.read(path,
             function(err,result) {
