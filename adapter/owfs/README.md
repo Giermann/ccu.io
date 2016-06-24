@@ -15,14 +15,14 @@ OWFS Client for CCU.IO
 
 ### 0.3.4
 * New configs: number, maxChange (wire level)
-* New configs: errorLevelRead, errorLevelWrite, errorLevelNumber (global or IP level)
-  [silly|debug|verbose|info|warn|error] (defaults to "debug" - output only if higher than logger.js log level)
+* New configs: errorLevelRead, errorLevelWrite, errorLevelNumber (global or IP level -
+  (silly|debug|verbose|info|warn|error) - defaults to "debug" - output only if higher than logger.js log level)
 
 ### 0.3.5
 * initiate simultaneous reading for temperature for better performance
 
 ### 0.3.4
-* New configs: unit, dir [r|w|rw] (direction: read/write only)
+* New configs: unit, dir (r|w|rw - direction: read/write only)
 * Continuous polling if interval < 0
 
 ### 0.3.3
