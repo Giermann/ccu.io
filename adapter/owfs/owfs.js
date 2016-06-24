@@ -75,7 +75,7 @@ function writeWire(ipID, wireID, value, retries) {
                             "error writing '" + this.p + "': " + err.msg);
                     }
                 }
-            }.bind( {p: path, id: ipID, wire: wireID, val: value, retr: ((retries || 0) + 1)} )
+            }.bind( {p: path, ip: ipID, wire: wireID, val: value, retr: ((retries || 0) + 1)} )
         );
     }
 }
