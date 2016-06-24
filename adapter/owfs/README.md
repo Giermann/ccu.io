@@ -1,5 +1,3 @@
-DRAFT VERSION - still not formated
-
 ###
 Prerequisites:
 
@@ -11,9 +9,17 @@ npm install express
 OWFS Client for CCU.IO
 ======
 
-* Aktuelle Version: 0.3.4
+* Aktuelle Version: 0.3.6
 
 ## Changelog
+
+### 0.3.4
+* New configs: number, maxChange (wire level)
+* New configs: errorLevelRead, errorLevelWrite, errorLevelNumber (global or IP level)
+  [silly|debug|verbose|info|warn|error] (defaults to "debug" - output only if higher than logger.js log level)
+
+### 0.3.5
+* initiate simultaneous reading for temperature for better performance
 
 ### 0.3.4
 * New configs: unit, dir [r|w|rw] (direction: read/write only)
@@ -43,7 +49,49 @@ Der Adapter erlaubt die Kommunikation mit einem OWFS Server. Dieser dient als
 Schnittstelle zu 1wire Geraeten.
   
 ### Konfiguration
-* Derzeit noch über settings.json  
+* Derzeit noch über settings.json
+* Beispiel
+```javascript
+{
+    "enabled": true,
+    "firstId": 74300,
+    "settings": {
+        "owserverTimeout": 3000,
+        "owserverInterval": 30000,
+        "errorLevelRead": "debug",
+        "errorLevelWrite": "debug",
+        "errorLevelNumber": "debug",
+        "IPs": {
+            "_1": {
+                "ip": "127.0.0.1",
+                "port": "4304",
+                "alias": "Local",
+                "interval": 30000,
+                "errorLevelNumber": "warn",
+                "wire": {
+                    "_1": {
+                        "alias": "Temp1",
+                        "id": "10.91F6DB020800",
+                        "maxChange": 0.01,
+                        "property": "temperature"
+                    },
+                    "_2": {
+                        "alias": "Temp2",
+                        "id": "28.A8C784050000",
+                        "number": true,
+                        "property": "temperature"
+                    },
+                    "_3": {
+                        "alias": "Textbeispiel",
+                        "id": "28.A8C784050000",
+                        "property": "type"
+                    }
+                }
+            }
+        }
+    }
+}
+```
 
 ### Funktionen
 * Es koennen mehrere OWFS Server angegeben werden
