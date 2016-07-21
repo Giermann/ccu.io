@@ -3,7 +3,7 @@ var currentAdapterSettings;
 var adapterHtmlEdit = false;
 
 function updateAdapterSettings() {
-    $("#adapter_config_json").html(JSON.stringify(currentAdapterSettings, null, "    "));
+    $("#adapter_config_json").val(JSON.stringify(currentAdapterSettings, null, "    "));
 }
 
 function translateWord(text, lang, dictionary) {
@@ -608,9 +608,9 @@ $(document).ready(function () {
     });
 
     $("#dataRefresh").button().css("width", 300).click(function() {
-        $("#data").html("");
+        $("#data").val("");
         socket.emit('getDatapoints', function(obj) {
-            $("#data").html(JSON.stringify(obj, null, "  "));
+            $("#data").val(JSON.stringify(obj, null, "  "));
         });
 
     });
@@ -1267,10 +1267,10 @@ $(document).ready(function () {
             $("#adapter_name").html(adapter);
 
             if (typeof data === "object") {
-                $("#adapter_config_json").html(JSON.stringify(data, null, "    "));
+                $("#adapter_config_json").val(JSON.stringify(data, null, "    "));
                 currentAdapterSettings = data;
             } else {
-                $("#adapter_config_json").html("{}");
+                $("#adapter_config_json").val("{}");
                 currentAdapterSettings = {};
                 showMessage("Error: reading adapter config - invalid JSON");
             }
