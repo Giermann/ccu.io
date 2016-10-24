@@ -121,7 +121,7 @@ if (settings.ioListenPortSsl) {
 
         serverSsl = require('https').createServer(options, appSsl);
         if (settings.useIPv6) {
-            serverSslV6 = require('http').createServer(options, appSsl);
+            serverSslV6 = require('https').createServer(options, appSsl);
         }
     }
 }
