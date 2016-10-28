@@ -9,12 +9,12 @@
 		"ru": "ccu.io"
 	},
     "whatsNew" : [
-      '(Giermann) Fix: Firefox did not re-enable Check Update button',
-      '(Giermann) Fix: script-engine/getTimestamp() returned value',
-      '(Giermann) Update OWFS adapter',
-      '(Giermann) Fix: Remove obsolete setTimeout inside moveLog',
-      '(Giermann) Fix: adapter roomba - missing settings.json',
-      '(BlueEssi) Adapter Denon: Implemented some more features, e.g. now you can switch between soundmodes cinema, music or game'
+      "(Giermann) Fix: Firefox did not re-enable Check Update button",
+      "(Giermann) Fix: script-engine/getTimestamp() returned value",
+      "(Giermann) Update OWFS adapter",
+      "(Giermann) Fix: Remove obsolete setTimeout inside moveLog",
+      "(Giermann) Fix: adapter roomba - missing settings.json",
+      "(BlueEssi) Adapter Denon: Implemented some more features, e.g. now you can switch between soundmodes cinema, music or game"
     ]
 
 }
