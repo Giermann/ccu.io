@@ -12,19 +12,33 @@
 PIDF=/opt/ccu.io/ccu.io.pid
 NODECMD=/usr/local/bin/node
 IOBROKERCMD=/opt/ccu.io/ccu.io-server.js
+NTPDATECMD=/usr/sbin/ntpdate-debian
 RETVAL=0
 IOBROKERUSER=@@user
 
 start() {
             echo -n "Starting ccu.io"
+            for seq in 1 2 3 4 5
+                if [ "$NTPDATECMD" != "" ] ; then
+                    sudo $NTPDATECMD
+                fi
+                if [ $(date +%Y) -le 2000 ] ; then
+                    sleep 5
+                    echo -n "."
+                else
+                    break
+                fi
+            done
             sudo -u ${IOBROKERUSER} $NODECMD $IOBROKERCMD start
             RETVAL=$?
+            echo "."
 }
 
 stop() {
             echo -n "Stopping ccu.io"
             sudo -u ${IOBROKERUSER} $NODECMD $IOBROKERCMD stop
             RETVAL=$?
+            echo "."
 }
 case "$1" in
     start)
