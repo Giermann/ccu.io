@@ -1,6 +1,7 @@
-var ccuIoSettings = null;
 var currentAdapterSettings;
-var adapterHtmlEdit = false;
+var ccuIoSettings = null;
+
+
 
 function updateAdapterSettings() {
     $("#adapter_config_json").val(JSON.stringify(currentAdapterSettings, null, "    "));
@@ -439,17 +440,33 @@ $(document).ready(function () {
 
         $("input#update_self_check").click(function () {
             $("#update_self_check").attr("disabled", true);
-            var url = "http://ccu.io/version.php";
+            // TODO: catch redirects and use original URL
+            //       original: https://github.com/Giermann/ccu.io/raw/master/io-core.json
+            //       redirect: https://raw.githubusercontent.com/Giermann/ccu.io/master/io-core.json
+            var url = "https://raw.githubusercontent.com/" +
+                (ccuIoSettings.repositoryOwner  || $("#repositoryOwner").attr("data-defaultval")) +
+                "/ccu.io/" +
+                (ccuIoSettings.repositoryBranch || $("#repositoryBranch").attr("data-defaultval")) +
+                "/io-core.json";
             socket.emit("getUrl", url, function(res) {
-                $("#update_self_check").hide();
+                var availVersion = "";
                 $("#update_self_check").attr("disabled", false);
-                $(".ccu-io-availversion").html(res);
-                if (compareVersion(ccuIoSettings.version, res)) {
+                try {
+                    var obj = JSON.parse(res);
+                    availVersion = obj.version;
+                } catch (e) {
+                    console.log("exception: "+e);
+                    showMessage("Error: unable to retrieve available version from\n"+this.getUrl);
+                    return;
+                }
+                $("#update_self_check").hide();
+                $(".ccu-io-availversion").html(availVersion);
+                if (compareVersion(ccuIoSettings.version, availVersion)) {
                     $("#update_self").show().click(function () {
                         socket.emit("updateSelf");
                     });
                 }
-            });
+            }.bind({ getUrl: url }));
         });
     });
 
@@ -518,8 +535,8 @@ $(document).ready(function () {
                         window.location.reload();
                     }
                 });
-            }, 90000);
-        }, 100);
+            }, 30000);
+        }, 3000);
 
     });
 
@@ -712,7 +729,7 @@ $(document).ready(function () {
             {name:'lastChange',index:'lastChange', width:140},
             {name:'persistent',index:'persistent', width:30}
         ],
-        rowNum:20,
+        rowNum:200,
         autowidth: true,
         width: 1200,
         height: 440,
@@ -900,7 +917,7 @@ $(document).ready(function () {
             {name: 'HssType', index: 'HssType', width: 130},
             {name: '_persistent', index: '_persistent', width: 30}
         ],
-        rowNum:     20,
+        rowNum:     200,
         autowidth:  true,
         width:      1200,
         height:     440,
@@ -949,7 +966,7 @@ $(document).ready(function () {
             {name:'lastchange',index:'lastchange', width:140}
         ],
         cmTemplate: {sortable:false},
-        rowNum:20,
+        rowNum:200,
         autowidth: true,
         width: 1200,
         height: 440,
@@ -1054,6 +1071,9 @@ $(document).ready(function () {
         }
         $("#longitude").val(ccuIoSettings.longitude);
         $("#latitude").val(ccuIoSettings.latitude);
+
+        $("#repositoryOwner").val(ccuIoSettings.repositoryOwner   || $("#repositoryOwner").attr("data-defaultval"));
+        $("#repositoryBranch").val(ccuIoSettings.repositoryBranch || $("#repositoryBranch").attr("data-defaultval"));
 
         if (ccuIoSettings.httpEnabled) {
             $("#httpEnabled").attr("checked", true);
@@ -1161,6 +1181,9 @@ $(document).ready(function () {
         ccuIoSettings.longitude = $("#longitude").val();
         ccuIoSettings.latitude = $("#latitude").val();
 
+        ccuIoSettings.repositoryOwner = $("#repositoryOwner").val();
+        ccuIoSettings.repositoryBranch = $("#repositoryBranch").val();
+
         if ($("#httpEnabled").is(":checked")) {
             ccuIoSettings.httpEnabled = true;
         } else if ($("#httpsEnabled").is(":checked")) {
@@ -1256,25 +1279,21 @@ $(document).ready(function () {
         });
     }
 
-
     function editAdapterSettings(adapter) {
-        $("#adapter_name").html("");
+        $("#adapter_name").html(adapter);
         $("#adapter_loading").show();
         $("#adapter_overview").hide();
         $("#adapter_config").hide();
 
-        socket.emit("readFile", "adapter-"+adapter+".json", function (data) {
-            $("#adapter_name").html(adapter);
 
-            if (typeof data === "object") {
+        socket.emit("readFile", "adapter-"+adapter+".json", function (data) {
+            try {
                 $("#adapter_config_json").val(JSON.stringify(data, null, "    "));
-                currentAdapterSettings = data;
-            } else {
+            } catch (e) {
                 $("#adapter_config_json").val("{}");
-                currentAdapterSettings = {};
                 showMessage("Error: reading adapter config - invalid JSON");
             }
-
+            currentAdapterSettings = data;
             socket.emit("readRawFile", "adapter/"+adapter+"/settings.html", function (content) {
                 $("#adapter_loading").hide();
                 $("#adapter_config").show();
@@ -1282,39 +1301,31 @@ $(document).ready(function () {
                     $("#adapter_config_container").html(content);
                     $("#adapter_config_json").hide();
                     $("#adapter_config_container").show();
-                    adapterHtmlEdit = true;
                 } else {
                     $("#adapter_config_container").hide();
                     $("#adapter_config_json").show();
                     resizeGrids();
-                    adapterHtmlEdit = false;
                 }
             });
         });
 
     }
 
-    function saveAdapterSettings(cb) {
+    function saveAdapterSettings() {
         var adapter = $("#adapter_name").html();
-        if (!adapter) {
-            showMessage("Error: adapter_name empty");
-            if (typeof cb === 'function') cb();
-        }
-
         try {
-            ccuIoSettings.adapters[adapter] = JSON.parse($("#adapter_config_json").val());
+            var adapterSettings = JSON.parse($("#adapter_config_json").val());
+            ccuIoSettings.adapters[adapter] = adapterSettings;
+
+            socket.emit("writeAdapterSettings", adapter, adapterSettings, function () {
+                showMessage(adapter + " " + translateWord("settings saved."));
+                loadAdapterSettings(adapter);
+            });
+            return true;
         } catch (e) {
             showMessage("Error: invalid JSON");
             return false;
         }
-
-        console.log('writeAdapterSettings', adapter, ccuIoSettings.adapters[adapter]);
-
-        socket.emit("writeAdapterSettings", adapter, ccuIoSettings.adapters[adapter], function () {
-            showMessage(adapter + " " + translateWord("settings saved."));
-            loadAdapterSettings(adapter);
-            if (typeof cb === 'function') cb();
-        });
     }
 
     function showMessage(text, caption) {
@@ -1338,10 +1349,10 @@ $(document).ready(function () {
     $("#adapter_save").button().click(saveAdapterSettings);
 
     $("#adapter_close").button().click(function () {
-        saveAdapterSettings(function () {
+        if (saveAdapterSettings()) {
             $("#adapter_config").hide();
             $("#adapter_overview").show();
-        });
+        }
     });
 
     $("#adapter_cancel").button().click(function () {
@@ -1350,17 +1361,15 @@ $(document).ready(function () {
     });
 
     function buildDevicesGrid() {
-        var newData = [];
         for (var id in regaObjects) {
             var obj = regaObjects[id];
             obj.id = id;
             obj._persistent = (obj._persistent ? "<input class='delObject' data-del-id='"+id+"' type='button' value='x'/>" : "");
             if (!obj.Parent) {
                 // FIXME Multiple usage of same IDs (datapoint-grid)
-                newData.push(obj);
+                $("#grid_objecttree").jqGrid('addRowData', id, obj);
             }
         }
-        $("#grid_objecttree").jqGrid('addRowData', 'id', newData);
         $("#grid_objecttree").trigger("reloadGrid");
     }
 
@@ -1376,13 +1385,11 @@ $(document).ready(function () {
     function buildDatapointsGrid() {
         $("#loader_message").append(translateWord("loading datapoints") + " ... <br/>");
         $datapointGrid.jqGrid("clearGridData");
-        $('#load_grid_datapoints').show();
 
         socket.emit('getDatapoints', function(obj) {
-            var newData = [];
             for (var id in obj) {
                 if (isNaN(id)) { continue; }
-                newData.push({
+                var data = {
                     id:         id,
                     name:       (regaObjects[id] ?  regaObjects[id].Name : ""),
                     address:    (regaObjects[id] ?  regaObjects[id].Address : ""),
@@ -1393,9 +1400,9 @@ $(document).ready(function () {
                     ack:        obj[id][2],
                     lastChange: (obj[id][3] == "1970-01-01 01:00:00" ? "" : obj[id][3]),
                     persistent: (regaObjects[id] && regaObjects[id]._persistent ? "<input class='delObject' data-del-id='"+id+"' type='button' value='x'/>" : "")
-                });
+                };
+                $datapointGrid.jqGrid('addRowData', id, data);
             }
-            $datapointGrid.jqGrid('addRowData', 'id', newData);
             $datapointGrid.trigger("reloadGrid");
         });
     }
