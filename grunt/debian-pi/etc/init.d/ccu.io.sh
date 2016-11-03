@@ -20,7 +20,7 @@ start() {
             echo -n "Starting ccu.io"
             for seq in 1 2 3 4 5; do
                 if [ -z $NTPDATECMD ] ; then
-                    sudo $NTPDATECMD
+                    $NTPDATECMD
                 fi
                 if [ $(date +%Y) -le 2000 ] ; then
                     sleep 5
