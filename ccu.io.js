@@ -1265,7 +1265,13 @@ function setState(id,val,ts,ack, callback) {
     if (id > 65535) {
         var uxTime = Math.round((new Date()).getTime() / 1000);
        // cacheLog(uxTime+" "+id+" "+JSON.stringify(val)+"\n");
-        devLog(uxTime, id, val);
+        if (datapoints[id] && settings.logging.varChangeOnly) {
+            if (datapoints[id][0] !== val || !datapoints[id][2]) {
+                devLog(uxTime, id, val);
+            }
+        } else {
+            devLog(uxTime, id, val);
+        }
         if (callback) {
             callback();
         }
