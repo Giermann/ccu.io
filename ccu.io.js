@@ -1259,8 +1259,6 @@ function setState(id,val,ts,ack, callback) {
 
     }
 
-    setDatapoint(id, val, ts, ack);
-
     // Virtual Datapoint
     if (id > 65535) {
         var uxTime = Math.round((new Date()).getTime() / 1000);
@@ -1272,9 +1270,11 @@ function setState(id,val,ts,ack, callback) {
         } else {
             devLog(uxTime, id, val);
         }
-        if (callback) {
-            callback();
-        }
+    }
+
+    setDatapoint(id, val, ts, ack);
+    if (callback) {
+        callback();
     }
 }
 
