@@ -13,7 +13,7 @@
  *   - Version 0.3.4 (Giermann) Continuous reading (interval<0) and new configs: unit, dir [r|w|rw] (direction: read/write only)
  *   - Version 0.3.5 (Giermann) Simultaneous reading for temperature
  *   - Version 0.3.6 (Giermann) added log level config and number types, retry on write errors
- *   - Version 0.3.7 (Giermann) avoid overwrite during reads before write finishes (using ack)
+ *   - Version 0.3.7 (Giermann) avoid overwrite during reads before write finishes
  *
  *   TODO: allow more than 50 wires per IP
  *   TODO: configure number of retries, maybe use different retry-time
