@@ -14,7 +14,7 @@ OWFS Client for CCU.IO
 ## Changelog
 
 ### 0.3.7
-* avoid overwrite during reads before write finishes (using ack)
+* avoid overwrite during reads before write finishes
 
 ### 0.3.6
 * New configs: number, maxChange (wire level)
