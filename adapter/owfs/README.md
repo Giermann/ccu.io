@@ -9,11 +9,14 @@ npm install express
 OWFS Client for CCU.IO
 ======
 
-* Aktuelle Version: 0.3.6
+* Aktuelle Version: 0.3.7
 
 ## Changelog
 
-### 0.3.4
+### 0.3.7
+* avoid overwrite during reads before write finishes (using ack)
+
+### 0.3.6
 * New configs: number, maxChange (wire level)
 * New configs: errorLevelRead, errorLevelWrite, errorLevelNumber (global or IP level -
   (silly|debug|verbose|info|warn|error) - defaults to "debug" - output only if higher than logger.js log level)
