@@ -2,7 +2,7 @@
  *   CCU.IO OWFS Adapter - owfs.js
  *
  *   Initial Version : 05. Mar 2014
- *   Current Version : 0.3.6 [24.06.2016]
+ *   Current Version : 0.3.7 [11.04.2018]
  *   
  *   Change Notes:
  *   - Initial Version 0.2.1 
@@ -55,7 +55,8 @@ adapter.onEvent = function (id, val, ts, ack){
 
         if (adapter.settings.IPs["_" + ipID] && adapter.settings.IPs["_" + ipID].wire["_" + wireID]){
             // Control some wire
-            writeWire(id, ipID, wireID, val);
+            adapter.settings.IPs["_" + ipID].wire["_" + wireID].writeActive = (adapter.settings.IPs["_" + ipID].wire["_" + wireID].dir != "r");
+            writeWire(ipID, wireID, val);
         }
     }
 }
@@ -64,7 +65,7 @@ var id          = 1;
 var rootId      = adapter.firstId;
 var channelsIDs = [];
 
-function writeWire(id, ipID, wireID, value, retries) {
+function writeWire(ipID, wireID, value, retries) {
     if (adapter.settings && adapter.settings.IPs["_" + ipID].wire["_" + wireID] && adapter.settings.IPs["_" + ipID].con) {
         var path = "/" + adapter.settings.IPs["_" + ipID].wire["_" + wireID].id + "/" + (adapter.settings.IPs["_" + ipID].wire["_" + wireID].property || "temperature");
         if (adapter.settings.IPs["_" + ipID].wire["_" + wireID].dir != "r") adapter.settings.IPs["_" + ipID].con.write(
@@ -73,26 +74,31 @@ function writeWire(id, ipID, wireID, value, retries) {
             function(err,result) {
                 if (err) {
                     if (this.retr < 5) {
-                        setTimeout(writeWire, (adapter.settings.owserverTimeout || 3000), this.obj, this.ip, this.wire, this.val, this.retr);
-                        return; // do not set ack yet
+                        setTimeout(writeWire, (adapter.settings.owserverTimeout || 3000), this.ip, this.wire, this.val, this.retr);
+                        return; // do not unset writeActive yet
                     } else {
                         adapter.log(adapter.settings.IPs["_" + this.ip].errorLevelWrite || adapter.settings.errorLevelWrite,
                             "error writing '" + this.p + "': " + err.msg);
-                        // but also acknowledge now to not block readings any longer
                     }
                 }
-                // set ack after successful write (or after giving up)
-                adapter.setState(this.id, value, true);
-            }.bind( {p: path, obj: id, ip: ipID, wire: wireID, val: value, retr: ((retries || 0) + 1)} )
-        ) else adapter.setState(id, value, true); // always ack readonly's
+                adapter.settings.IPs["_" + ipID].wire["_" + wireID].writeActive = false;
+            }.bind( {p: path, ip: ipID, wire: wireID, val: value, retr: ((retries || 0) + 1)} )
+        );
     }
 }
 
 function readWire(ipID, wireID, loop) {
     if (adapter.settings && adapter.settings.IPs["_" + ipID].wire["_" + wireID] && adapter.settings.IPs["_" + ipID].con) {
         var path = "/" + adapter.settings.IPs["_" + ipID].wire["_" + wireID].id + "/" + (adapter.settings.IPs["_" + ipID].wire["_" + wireID].property || "temperature");
+        if (adapter.settings.IPs["_" + ipID].wire["_" + wireID].writeActive) {
+            // do not overwrite unwritten values
+            adapter.log(adapter.settings.IPs["_" + this.ip].errorLevelRead || adapter.settings.errorLevelRead,
+                "skip reading until changed value is written: " + path);
+            return;
+        }
         if (adapter.settings.IPs["_" + ipID].wire["_" + wireID].dir != "w") adapter.settings.IPs["_" + ipID].con.read(path,
             function(err,result) {
+                var id = adapter.settings.IPs["_" + this.ip].channelId + this.wire;
                 if (err) {
                     adapter.log(adapter.settings.IPs["_" + this.ip].errorLevelRead || adapter.settings.errorLevelRead,
                         "error reading '" + this.p + "': " + err.msg);
@@ -103,9 +109,7 @@ function readWire(ipID, wireID, loop) {
                                 "skip invalid value for id " + id + ": " + result);
                         } else if (adapter.settings.IPs["_" + this.ip].wire["_" + this.wire].maxChange) {
                             // async check for delta and return without setting DP
-                            adapter.getState(adapter.settings.IPs["_" + this.ip].channelId + this.wire, function (id, val, ts, ack, lc) {
-                                // do not overwrite changes before they have been written (acknowledged)
-                                if (!ack) return;
+                            adapter.getState(id, function (id, val) {
                                 if (val < (this.newVal - this.maxChange)) {
                                     adapter.log(this.logLevel, "trimmed value for id " + id + ": " + this.newVal + " to maxChange");
                                     adapter.setState(id, val + this.maxChange, true);
@@ -121,18 +125,18 @@ function readWire(ipID, wireID, loop) {
                                 logLevel: (adapter.settings.IPs["_" + this.ip].errorLevelNumber || adapter.settings.errorLevelNumber)
                             } ));
                         } else {
-                            adapter.setState(adapter.settings.IPs["_" + this.ip].channelId + this.wire, parseFloat(result), true);
+                            adapter.setState(id, parseFloat(result), true);
                         }
                     } else {
-                        adapter.getState(adapter.settings.IPs["_" + this.ip].channelId + this.wire, function (id, val, ts, ack, lc) {
-                            // do not overwrite changes before they have been written (acknowledged)
-                            if (!ack) return;
+                        if (this.doLoop) {
                             // loop mode: do not call setState on unchanged values
-                            if (!this.loop || (val != this.newVal)) {
-                                // set ack=true to avoid writing the same value back again
-                                if  adapter.setState(id, this.newVal, true);
-                            }
-                        }.bind( {newVal: result, loop: this.doLoop} ));
+                            adapter.getState(id, function (id, val) {
+                                if (val != this.newVal) adapter.setState(id, this.newVal, true);
+                            }.bind( {newVal: result} ));
+                        } else {
+                            // set ack=true to avoid writing the same value back again
+                            adapter.setState(id, result, true);
+                        }
                     }
                 }
                 // prefer setTimeout for next read (wait in case of error)
@@ -189,10 +193,6 @@ function createPointsForServer(ipID) {
                               ((adapter.settings.IPs["_" + ipID].wire["_" + id].property || "temperature") == "temperature" ? "°C" : "")
             }
         );
-        adapter.getState(channelId + id, function (id, val, ts, ack, lc) {
-            // initially acknowledge all datapoints
-            if (!ack) adapter.setState(id, val, true);
-        });
         id++;
     };
 
@@ -228,4 +228,3 @@ function initOWFS (){
 }
 
 initOWFS();
-
