@@ -189,6 +189,10 @@ function createPointsForServer(ipID) {
                               ((adapter.settings.IPs["_" + ipID].wire["_" + id].property || "temperature") == "temperature" ? "°C" : "")
             }
         );
+        adapter.getState(channelId + id, function (id, val, ts, ack, lc) {
+            // initially acknowledge all datapoints
+            if (!ack) adapter.setState(id, val, true);
+        });
         id++;
     };
 
