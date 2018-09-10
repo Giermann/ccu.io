@@ -8,7 +8,7 @@ ncp.limit = 16;
 
 logger.info("update-ccu.io started");
 
-var url = "https://github.com/hobbyquaker/ccu.io/archive/master.zip",
+var url = "https://github.com/Giermann/ccu.io/archive/master.zip",
     tmpDir = "ccu.io-master",
     tmpFile = __dirname+"/tmp/master.zip";
 
